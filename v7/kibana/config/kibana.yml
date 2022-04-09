@@ -1,0 +1,4 @@
+server.port: 5601
+server.host: "localhost"
+
+elasticsearch.hosts: [ "http://localhost:9200", "http://localhost:9201", "http://localhost:9202" ]
