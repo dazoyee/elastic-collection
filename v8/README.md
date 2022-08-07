@@ -82,7 +82,7 @@ remote_monitoring_user
 - ダウンロードした`elastic-agent`から実行
 
 ```
-.\elastic-agent.exe install  `
+.\elastic-agent.exe enroll  `
   --fleet-server-es=https://127.0.0.1:9200 `
   --fleet-server-service-token=<TOKEN> `
   --fleet-server-policy=fleet-server-policy `
@@ -90,17 +90,7 @@ remote_monitoring_user
   --fleet-server-insecure-http
 ```
 
-- ただ以下のようなエラーになることがあるかも
-
-```
-Error: remove C:\Program Files\Elastic\Agent\elastic-agent.exe: Access is denied.
-For help, please see our troubleshooting guide at https://www.elastic.co/guide/en/fleet/8.1/fleet-troubleshooting.html
-```
-
-- おそらく、`install`コマンドで`Program Files`にリンクしてサービス登録するっぽい
-- そのときに失敗すると削除までやってくれているのだが、そこでエラーが出ている
-
-- そのときは`enroll`コマンド＆同じパラメータで再実行
+- `enroll`コマンドで実行
 
 ```
 Successfully enrolled the Elastic Agent.
@@ -140,4 +130,63 @@ java -javaagent:/path/to/elastic-apm-agent-<version>.jar \
 -Delastic.apm.environment=production \
 -Delastic.apm.application_packages=org.example \
 -jar my-application.jar
+```
+
+# Upgrade Elasticsearch
+
+1. シャードの割り当てを無効にします。
+
+```
+curl -X PUT "localhost:9200/_cluster/settings?pretty" -H 'Content-Type: application/json' -d'
+{
+  "persistent": {
+    "cluster.routing.allocation.enable": "primaries"
+  }
+}
+'
+```
+
+2. 重要でないインデックス作成を停止し、フラッシュを実行します。(オプション)
+
+```
+curl -X POST "localhost:9200/_flush?pretty"
+```
+
+3. アクティブな機械学習ジョブとデータフィードに関連付けられているタスクを一時的に停止します。(オプション)
+
+```
+curl -X POST "localhost:9200/_ml/set_upgrade_mode?enabled=true&pretty"
+```
+
+4. 1 つのノードをシャットダウンします。
+5. シャットダウンしたノードをアップグレードします。
+
+6. プラグインをアップグレードします。
+
+```
+elasticsearch-plugin.bat
+```
+
+7. アップグレードされたノードを起動します。
+
+8. シャードの割り当てを再度有効にします。
+
+```
+curl -X PUT "localhost:9200/_cluster/settings?pretty" -H 'Content-Type: application/json' -d'
+{
+  "persistent": {
+    "cluster.routing.allocation.enable": null
+  }
+}
+'
+```
+
+9. ノードが回復するまで待ちます。
+
+```
+curl -X GET "localhost:9200/_cat/health?v=true&pretty"
+```
+
+```
+curl -X GET "localhost:9200/_cat/recovery?pretty"
 ```
